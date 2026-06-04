@@ -223,7 +223,7 @@ export default function TradePage() {
     if (!useSupabase) return
     setEditingItem(item.id)
     setEditText(item.text)
-    setTimeout(() => editInputRef.current?.focus(), 50)
+    setTimeout(() => { editInputRef.current?.focus(); editInputRef.current?.select() }, 50)
   }
 
   async function saveEdit(itemId) {
@@ -257,7 +257,7 @@ export default function TradePage() {
       }))
       setEditingItem(newItem.id)
       setEditText('פריט חדש')
-      setTimeout(() => editInputRef.current?.focus(), 50)
+      setTimeout(() => { editInputRef.current?.focus(); editInputRef.current?.select() }, 50)
     } catch (err) {
       console.error('שגיאה בהוספת פריט:', err)
     }
@@ -708,6 +708,30 @@ export default function TradePage() {
                                   </div>
                                 </div>
                                 <div className="flex flex-col items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+                                  <button
+                                    onClick={() => {
+                                      const fullItems = sectionItems[sectionId] || []
+                                      const fullIdx = fullItems.findIndex(i => i.id === item.id)
+                                      if (fullIdx > 0) handleMoveItem(sectionId, fullIdx, -1)
+                                    }}
+                                    disabled={itemIdx === 0}
+                                    className="w-6 h-6 rounded flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary/10 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                                    title="הזז למעלה"
+                                  >
+                                    <span className="material-symbols-outlined text-[16px]">keyboard_arrow_up</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const fullItems = sectionItems[sectionId] || []
+                                      const fullIdx = fullItems.findIndex(i => i.id === item.id)
+                                      if (fullIdx < fullItems.length - 1) handleMoveItem(sectionId, fullIdx, 1)
+                                    }}
+                                    disabled={itemIdx === allItems.length - 1}
+                                    className="w-6 h-6 rounded flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary/10 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                                    title="הזז למטה"
+                                  >
+                                    <span className="material-symbols-outlined text-[16px]">keyboard_arrow_down</span>
+                                  </button>
                                   <button
                                     onClick={() => handleDeleteItem(item.id, sectionId)}
                                     className="w-6 h-6 rounded flex items-center justify-center text-text-secondary hover:text-error hover:bg-error/10 transition-all"
