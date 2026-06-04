@@ -3,9 +3,9 @@ import { useState, useRef, useEffect } from 'react'
 import { trades as staticTrades } from '../data/trades'
 import { tradeData } from '../data/tradeData'
 import { getTrade } from '../services/tradeService'
-import { getSections, createSection, deleteSection } from '../services/sectionService'
+import { getSections, createSection, deleteSection, reorderSections } from '../services/sectionService'
 import { getItems, createItem, updateItem, deleteItem, reorderItems } from '../services/itemService'
-import { getSubsections, createSubsection, updateSubsection, deleteSubsection } from '../services/subsectionService'
+import { getSubsections, createSubsection, updateSubsection, deleteSubsection, reorderSubsections } from '../services/subsectionService'
 import { uploadImage, deleteImage } from '../services/storageService'
 import { exportTradePDF } from '../services/pdfService'
 
@@ -321,6 +321,45 @@ export default function TradePage() {
     setEditingSubsection(null)
   }
 
+  // --- הזזת קטגוריה ---
+  async function handleMoveSection(idx, direction) {
+    if (!useSupabase) return
+    const newIdx = idx + direction
+    if (newIdx < 0 || newIdx >= sections.length) return
+
+    const newSections = [...sections]
+    const [moved] = newSections.splice(idx, 1)
+    newSections.splice(newIdx, 0, moved)
+
+    setSections(newSections)
+    try {
+      await reorderSections(tradeId, newSections.map(s => s.id))
+    } catch (err) {
+      console.error('שגיאה בסידור קטגוריות:', err)
+      setSections(sections)
+    }
+  }
+
+  // --- הזזת תת-קטגוריה ---
+  async function handleMoveSubsection(sectionId, idx, direction) {
+    if (!useSupabase) return
+    const subs = subsections[sectionId] || []
+    const newIdx = idx + direction
+    if (newIdx < 0 || newIdx >= subs.length) return
+
+    const newSubs = [...subs]
+    const [moved] = newSubs.splice(idx, 1)
+    newSubs.splice(newIdx, 0, moved)
+
+    setSubsections(prev => ({ ...prev, [sectionId]: newSubs }))
+    try {
+      await reorderSubsections(sectionId, newSubs.map(s => s.id))
+    } catch (err) {
+      console.error('שגיאה בסידור תת-קטגוריות:', err)
+      setSubsections(prev => ({ ...prev, [sectionId]: subs }))
+    }
+  }
+
   // --- מחיקת פריט ---
   async function handleDeleteItem(itemId, sectionId) {
     if (!useSupabase) return
@@ -572,9 +611,27 @@ export default function TradePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {useSupabase && (
+                    <>
+                      <span
+                        onClick={(e) => { e.stopPropagation(); handleMoveSection(idx, -1) }}
+                        className={`material-symbols-outlined text-[18px] text-text-secondary hover:text-primary transition-colors ${idx === 0 ? 'opacity-20 cursor-not-allowed' : 'cursor-pointer'}`}
+                        title="הזז למעלה"
+                      >
+                        keyboard_arrow_up
+                      </span>
+                      <span
+                        onClick={(e) => { e.stopPropagation(); handleMoveSection(idx, 1) }}
+                        className={`material-symbols-outlined text-[18px] text-text-secondary hover:text-primary transition-colors ${idx === displaySections.length - 1 ? 'opacity-20 cursor-not-allowed' : 'cursor-pointer'}`}
+                        title="הזז למטה"
+                      >
+                        keyboard_arrow_down
+                      </span>
+                    </>
+                  )}
+                  {useSupabase && (
                     <span
                       onClick={(e) => { e.stopPropagation(); handleDeleteSection(sectionId, idx) }}
-                      className="material-symbols-outlined text-[18px] text-text-secondary hover:text-error transition-colors opacity-0 group-hover:opacity-100"
+                      className="material-symbols-outlined text-[18px] text-text-secondary hover:text-error transition-colors cursor-pointer"
                       title="מחק פרק"
                     >
                       delete
@@ -665,6 +722,8 @@ export default function TradePage() {
                         }
 
                         if (group.type === 'subsection') {
+                          const subs = subsections[sectionId] || []
+                          const subIdx = subs.findIndex(s => s.id === group.subsection.id)
                           return (
                             <div key={group.subsection.id} className="mb-4">
                               {gIdx > 0 && <div className="h-px bg-border w-full mb-4"></div>}
@@ -693,6 +752,20 @@ export default function TradePage() {
                                     {group.subsection.title}
                                   </span>
                                 )}
+                                <span
+                                  onClick={() => handleMoveSubsection(sectionId, subIdx, -1)}
+                                  className={`material-symbols-outlined text-[14px] transition-colors opacity-0 group-hover/sub:opacity-100 ${subIdx === 0 ? 'text-text-secondary/30 cursor-not-allowed' : 'text-text-secondary hover:text-primary cursor-pointer'}`}
+                                  title="הזז למעלה"
+                                >
+                                  keyboard_arrow_up
+                                </span>
+                                <span
+                                  onClick={() => handleMoveSubsection(sectionId, subIdx, 1)}
+                                  className={`material-symbols-outlined text-[14px] transition-colors opacity-0 group-hover/sub:opacity-100 ${subIdx === subs.length - 1 ? 'text-text-secondary/30 cursor-not-allowed' : 'text-text-secondary hover:text-primary cursor-pointer'}`}
+                                  title="הזז למטה"
+                                >
+                                  keyboard_arrow_down
+                                </span>
                                 <button
                                   onClick={() => handleDeleteSubsection(sectionId, group.subsection.id)}
                                   className="w-5 h-5 rounded flex items-center justify-center text-text-secondary hover:text-error transition-all opacity-0 group-hover/sub:opacity-100"
